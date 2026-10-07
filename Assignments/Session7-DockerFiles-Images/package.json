@@ -1,0 +1,9 @@
+{
+  "name": "multi-stage-dockerfile",
+  "version": "1.0.0",
+  "description": "Multi-stage Dockerfile example",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  }
+}
