@@ -1,13 +1,91 @@
-# CI/CD Pipelines with GitHub Actions - Hands-on Lab
+# CI/CD Pipelines with GitHub Actions - Hands-on Lab & Comprehensive Guide
 
-A comprehensive hands-on guide covering Continuous Integration and Continuous Deployment (CI/CD) workflows with GitHub Actions: configuring Python virtual environments, developing and testing a Flask-based microservice (`hey-cicd`), running automated test suites with code coverage analysis using `pytest` and `pytest-cov`, containerizing the application using Docker, deploying workloads to Kubernetes via Minikube with NodePort service exposure, configuring GitHub Actions workflow pipelines (`.github/workflows/devsecops.yml`), and executing a multi-stage automated CI/CD pipeline covering unit tests, SAST code analysis, dependency auditing, container builds, Trivy security vulnerability scanning, container registry publishing, and Kubernetes deployments.
+A comprehensive hands-on guide covering Continuous Integration and Continuous Deployment (CI/CD) workflows with GitHub Actions: exploring foundational CI/CD theories, pipeline architecture, GitHub Actions workflow primitives (workflows, jobs, steps, runners, secrets, and artifacts), local Python development and testing with `pytest` and `pytest-cov`, containerization using Docker, Kubernetes deployments with Minikube, and implementing an automated multi-stage GitHub Actions CI/CD pipeline.
+
+---
+
+## Conceptual Architecture: CI vs CD
+
+```mermaid
+flowchart TD
+    subgraph Developer Laptop
+        DEV[Developer Code] -->|git commit| GIT[Local Git]
+    end
+
+    subgraph Continuous Integration (CI)
+        GIT -->|git push| GHR[GitHub Repository]
+        GHR --> GHA[GitHub Actions Trigger]
+        GHA --> LINT[Code Linting & Formatting]
+        LINT --> TEST[Automated Unit Tests]
+        TEST --> COV[Code Coverage Analysis]
+        COV --> BUILD[Package Build & Artifact Creation]
+    end
+
+    subgraph Continuous Delivery / Deployment (CD)
+        BUILD --> CONT[Docker Image Build]
+        CONT --> SCAN[Security & Vulnerability Scan]
+        SCAN --> REG[Container Registry Publish]
+        REG --> DEPLOY{Deployment Mode}
+        DEPLOY -->|Manual Approval| CDEL[Continuous Delivery]
+        DEPLOY -->|Automatic Promotion| CDEP[Continuous Deployment]
+        CDEL --> K8S[Kubernetes Cluster]
+        CDEP --> K8S
+    end
+```
+
+### 1. Continuous Integration (CI)
+- **Definition**: The software engineering practice where developers frequently merge code updates into a shared central repository. Every push triggers an automated build and test pipeline.
+- **Primary Goal**: Detect bugs early, prevent integration drift, reduce debugging overhead, and ensure master branch stability.
+- **Key Stages**: Code checkout, dependency installation, static linting, unit testing, test coverage verification, and build artifact creation.
+
+### 2. Continuous Delivery (CD) vs Continuous Deployment (CD)
+- **Continuous Delivery**: Automatically builds, tests, and stages every validated code change into a deployable artifact or staging environment. The release to production requires a manual one-click sign-off or release schedule.
+- **Continuous Deployment**: Fully automates the entire journey from git commit to live production rollout with zero human gatekeeping, relying on automated smoke tests, canary rollouts, and automatic rollbacks.
+
+### 3. CI vs CD Comparison
+
+| Dimension | Continuous Integration (CI) | Continuous Delivery (CD) | Continuous Deployment (CD) |
+| :--- | :--- | :--- | :--- |
+| **Focus** | Code validation & merging | Software release preparation | Automated production release |
+| **Trigger** | Every commit / pull request | Passing CI pipeline | Passing Delivery pipeline |
+| **Output** | Tested build artifacts | Deploy-ready package / Staging | Live production deployment |
+| **Human Gate** | Automated | Manual approval to production | Zero human intervention |
+| **Target Audience** | Software Developers | QA, Release Managers, DevOps | End Users & Customers |
+
+---
+
+## GitHub Actions Core Concepts
+
+GitHub Actions is an event-driven automation platform built directly into GitHub. It is composed of five core building blocks:
+
+```mermaid
+flowchart LR
+    EVENT[Event: push / PR] --> WORKFLOW[Workflow: .github/workflows/*.yml]
+    WORKFLOW --> JOB1[Job 1: Test]
+    WORKFLOW --> JOB2[Job 2: Build]
+    JOB1 --> STEP1[Step: Checkout]
+    JOB1 --> STEP2[Step: Run pytest]
+    JOB2 --> STEP3[Step: Docker Build]
+    JOB1 -.-> RUNNER[Runner: ubuntu-latest]
+    JOB2 -.-> RUNNER
+```
+
+1. **Workflows**: Configurable automated processes defined in YAML files located in `.github/workflows/`. They define which events trigger execution and which jobs to run.
+2. **Events**: Specific activities that trigger a workflow run (e.g., `push`, `pull_request`, `schedule`, `workflow_dispatch`).
+3. **Jobs**: Sets of steps that execute on the same runner. By default, jobs run in parallel unless sequential dependencies are configured using `needs: [job_id]`.
+4. **Steps**: Individual tasks executed sequentially inside a job. Steps can run shell commands (`run:`) or execute reusable community actions (`uses:`).
+5. **Runners**: Virtual machines or containers that host the job execution:
+   - **GitHub-Hosted Runners**: Managed by GitHub (e.g., `ubuntu-latest`, `windows-latest`, `macos-latest`), preloaded with developer tools and automatically destroyed after each job.
+   - **Self-Hosted Runners**: Custom physical or virtual servers hosted by the user for custom hardware requirements, persistent caching, or internal private network access.
+6. **Secrets & Environment Variables**: Encrypted environment values configured in repository settings (`${{ secrets.GITHUB_TOKEN }}`, `${{ secrets.KUBECONFIG }}`) to protect sensitive credentials from exposure in source code.
+7. **Artifacts**: Files (binaries, test reports, tarballs) persisted after a job finishes, shareable across jobs via `actions/upload-artifact` and `actions/download-artifact`.
 
 ---
 
 ## Part 1: Local Python Environment & Microservice Setup
 
 ### 1. Setting Up Python Virtual Environment and Verifying Application Logic
-A virtual environment ensures application dependencies are isolated from system-level Python packages.
+A virtual environment isolates project dependencies from the system-wide Python environment.
 ```bash
 python3 -m venv path/to/venv
 source path/to/venv/bin/activate
@@ -16,7 +94,7 @@ python3 app/calculator.py
 ![Python Virtual Environment and Calculator Verification](./Images/image.png)
 
 ### 2. Installing Production Dependencies via `requirements.txt`
-Install core application requirements including Flask 3.1.3, Jinja2 template engine, Werkzeug WSGI toolkit, and Blinker.
+Install core application dependencies including Flask 3.1.3, Jinja2 template engine, Werkzeug WSGI toolkit, and Blinker.
 ```bash
 pip install -r requirements.txt
 ```
@@ -27,7 +105,7 @@ pip install -r requirements.txt
 ## Part 2: Flask Web Application & Interactive UI
 
 ### 1. Starting the Flask Development Server
-Launch the Flask development server on `0.0.0.0:5001` with debug mode enabled to support live reloading and dynamic error diagnostics.
+Launch the Flask development server on `0.0.0.0:5001` with debug mode enabled to support live code reloading and interactive debugging.
 ```bash
 python3 app/app.py
 ```
